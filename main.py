@@ -40,9 +40,9 @@ def main():
     parser.add_argument(
         "--target",
         type=str,
-        choices=["djia", "tech", "all"],
+        choices=["djia", "tech", "all", "margin"],
         default="djia",
-        help="Stock market segment to model: 'djia' (Dow Jones 30, default), 'tech' (High-Tech 30), or 'all' (both)"
+        help="Stock market segment to model: 'djia' (Dow Jones 30, default), 'tech' (High-Tech 30), 'all' (both), or 'margin' (cross-model margin call analysis)"
     )
     parser.add_argument(
         "--mode",
@@ -58,6 +58,11 @@ def main():
     parser.add_argument("--threshold", type=float, default=75.0, help="Buy signal probability threshold percentage")
 
     args = parser.parse_args()
+
+    if args.target == "margin":
+        from src.margin_call_analysis import analyze_margin_calls
+        analyze_margin_calls(period=args.period)
+        return
 
     if args.target == "all":
         from src.run_all import run_all_pipelines

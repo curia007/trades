@@ -42,6 +42,14 @@ It combines historical and live technical indicator engineering via Yahoo Financ
     - ⏸️ **HOLD / SKIP**: Neutral / sideways momentum.
   - Ranks all stocks and highlights the **Top 5 to BUY**, **Top 5 to SELL**, and **Top 5 to HOLD/SKIP** for the next opening bell.
 
+- **Cross-Model Margin Call & Leverage Analysis**:
+  - Unifies intelligence across both DJIA and High-Tech trained neural networks.
+  - Calculates 30-day annualized volatility and intraday price range dynamics.
+  - Identifies:
+    - 🚨 **#1 Best Stock to Place Margin Calls / Short Targets**: Stocks with high bearish probability and downward momentum where longs face maximum margin call risk.
+    - 🚀 **#1 Best Leveraged Margin Buy**: Highest-conviction bullish setups for leveraged long positions.
+    - ⚠️ **High-Volatility Margin Alert Stocks**: Extreme price-swing candidates requiring tight risk controls.
+
 ---
 
 ## 📂 Project Structure
@@ -50,13 +58,14 @@ It combines historical and live technical indicator engineering via Yahoo Financ
 Trades/
 ├── README.md                          # Project documentation
 ├── LICENSE                            # License information
-├── main.py                            # Unified CLI entry point (DJIA, Tech, or All)
+├── main.py                            # Unified CLI entry point (DJIA, Tech, All, or Margin)
 ├── data/                              # Serialized model weights & normalization metadata
 │   ├── normalization_djia_stats.json  # DJIA Z-score normalization statistics
 │   ├── djia_stock_model.safetensors   # Trained DJIA MLX neural network weights
 │   ├── normalization_tech_stats.json  # Tech Z-score normalization statistics
 │   └── tech_stock_model.safetensors   # Trained Tech MLX neural network weights
 └── src/
+    ├── margin_call_analysis.py        # Cross-model margin call & leverage risk ranking
     ├── run_all.py                     # Dual-market runner (calls both DJIA and Tech pipelines)
     ├── train_djia_stock_model.py      # DJIA historical retrieval, dataset construction & training
     ├── train_tech_stock_model.py      # High-Tech historical retrieval, dataset construction & training
@@ -141,6 +150,16 @@ python main.py --target tech --mode predict
 
 # Standalone sample prediction for DJIA
 python src/samples/stock_prediction.py
+```
+
+### 4. Run Cross-Model Margin Call Analysis
+
+Evaluate both DJIA and High-Tech models to determine the best stocks to place margin calls (bearish short targets with maximum downside risk/margin call potential as well as high-conviction leveraged margin buys):
+
+```bash
+python src/margin_call_analysis.py --top-n 5
+# or via main.py:
+python main.py --target margin
 ```
 
 ---
