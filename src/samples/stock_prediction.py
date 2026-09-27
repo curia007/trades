@@ -1,8 +1,19 @@
+import warnings
+
+# Suppress urllib3 v2 NotOpenSSLWarning on macOS LibreSSL environments
+warnings.filterwarnings("ignore", message=r".*urllib3 v2 only supports OpenSSL 1\.1\.1\+.*")
+try:
+    import urllib3
+    warnings.filterwarnings("ignore", category=urllib3.exceptions.NotOpenSSLWarning)
+except Exception:
+    pass
+
+import json
+import os
+from pathlib import Path
 import mlx.core as mx
 import mlx.nn as nn
-import numpy as nn_module
 import numpy as np
-import pandas as pd
 import yfinance as yf
 
 
@@ -24,9 +35,34 @@ class StockPredictionModel(nn.Module):
 # 2. Reconstruct Model Structure and Load Weights
 INPUT_FEATURES = 4
 model = StockPredictionModel(input_dim=INPUT_FEATURES)
-saved_weights = mx.load("stock_model.safetensors")
-model.update(saved_weights)
-mx.eval(model.parameters())
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+
+WEIGHTS_FILE = str(DATA_DIR / "djia_stock_model.safetensors")
+STATS_FILE = str(DATA_DIR / "normalization_djia_stats.json")
+
+# Fallback check if in root
+if not os.path.exists(WEIGHTS_FILE) and os.path.exists("djia_stock_model.safetensors"):
+    WEIGHTS_FILE = "djia_stock_model.safetensors"
+if not os.path.exists(STATS_FILE) and os.path.exists("normalization_djia_stats.json"):
+    STATS_FILE = "normalization_djia_stats.json"
+
+if os.path.exists(WEIGHTS_FILE):
+    model.load_weights(WEIGHTS_FILE)
+    mx.eval(model.parameters())
+    print(f"✓ Loaded trained model weights from '{WEIGHTS_FILE}'")
+else:
+    print(f"⚠️ Warning: Weights file '{WEIGHTS_FILE}' not found. Please train the model first.")
+
+norm_mean = None
+norm_std = None
+if os.path.exists(STATS_FILE):
+    with open(STATS_FILE, "r") as f:
+        stats = json.load(f)
+        norm_mean = np.array(stats["mean"], dtype=np.float32)
+        norm_std = np.array(stats["std"], dtype=np.float32)
+        print(f"✓ Loaded training normalization stats from '{STATS_FILE}'")
 
 
 # 3. Live Data Engineering Function (Strictly matching training logic)
@@ -59,38 +95,99 @@ def fetch_live_features(ticker_symbol):
     # --- Feature 4: Past 24h Return (%) ---
     df['Daily_Return'] = df['Close'].pct_change() * 100
 
-    # --- Z-Score Feature Standardization (Simulation of production scaling) ---
-    # Note: In production, always use the explicit Mean/STD calculated from your
-    # original historical training set, NOT a dynamic sample mean.
+    # --- Feature Standardization ---
     features_df = df[['RSI', 'MACD', 'Volume_Trend', 'Daily_Return']].dropna()
     latest_metrics = features_df.iloc[-1].values  # Get the absolute most recent market row
 
-    # Simple Z-Score scale baseline matching original normalization format
-    standardized_features = (latest_metrics - features_df.mean().values) / (features_df.std().values + 1e-9)
+    if norm_mean is not None and norm_std is not None:
+        standardized_features = (latest_metrics - norm_mean) / norm_std
+    else:
+        # Fallback to local sample standardization if global stats are unavailable
+        standardized_features = (latest_metrics - features_df.mean().values) / (features_df.std().values + 1e-9)
 
     return np.array([standardized_features], dtype=np.float32)
 
 
-# 4. Run Execution Pipeline
-try:
-    TICKER = "AAPL"  # Change to any symbol you want to target (e.g., NVDA, SPY, TSLA)
-    live_features = fetch_live_features(TICKER)
+# 4. Run Execution Pipeline for DJIA Stocks
+DJIA_TICKERS = [
+    "AAPL", "AMGN", "AMZN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS",
+    "GS", "HD", "HON", "IBM", "JNJ", "JPM", "KO", "MCD", "MMM", "MRK",
+    "MSFT", "NKE", "NVDA", "PG", "SHW", "TRV", "UNH", "V", "VZ", "WMT"
+]
 
-    # Convert feature vector into an MLX Tensor
-    input_tensor = mx.array(live_features)
+TRADING_THRESHOLD = 75.0
+predictions = []
 
-    # Run structural inference
-    raw_logits = model(input_tensor)
-    probability = mx.sigmoid(raw_logits).item() * 100
+print("=" * 60)
+print("📊 Analyzing DJIA Stocks for Next Opening Bell Breakouts")
+print("=" * 60)
 
-    print(f"\n--- 📈 {TICKER} Next-Day Forecast ---")
-    print(f"Confidence score for a major breakout move: {probability:.2f}%")
+for ticker in DJIA_TICKERS:
+    try:
+        live_features = fetch_live_features(ticker)
 
-    TRADING_THRESHOLD = 75.0
-    if probability >= TRADING_THRESHOLD:
-        print(f"🚀 SIGNAL: BUY {TICKER}. Strong breakout signature detected.")
-    else:
-        print(f"⚠️ SIGNAL: HOLD / SKIP {TICKER}. Below target momentum thresholds.")
+        # Convert feature vector into an MLX Tensor
+        input_tensor = mx.array(live_features)
 
-except Exception as e:
-    print(f"❌ Error compiling pipeline metrics: {e}")
+        # Run structural inference
+        raw_logits = model(input_tensor)
+        probability = mx.sigmoid(raw_logits).item() * 100
+
+        # Assign trading signal based on probabilities
+        if probability >= TRADING_THRESHOLD:
+            signal = "BUY 🚀"
+        elif probability <= (100.0 - TRADING_THRESHOLD):
+            signal = "SELL 🔻"
+        elif probability >= 55.0:
+            signal = "BUY (Moderate) 📈"
+        elif probability <= 45.0:
+            signal = "SELL (Moderate) 📉"
+        else:
+            signal = "HOLD / SKIP ⏸️"
+
+        predictions.append({
+            "ticker": ticker,
+            "probability": probability,
+            "signal": signal
+        })
+        print(f"  ✓ {ticker}: {probability:.2f}% ({signal})")
+
+    except Exception as e:
+        print(f"  ❌ Error fetching/analyzing {ticker}: {e}")
+
+# Sort stocks by probability in descending order
+predictions.sort(key=lambda x: x["probability"], reverse=True)
+
+print("\n" + "=" * 60)
+print("🏆 DJIA COMPLETE STOCKS RANKING (Next Opening Bell Forecast)")
+print("=" * 60)
+print(f"{'Rank':<6}{'Ticker':<10}{'Confidence':<16}{'Signal':<15}")
+print("-" * 60)
+
+for rank, item in enumerate(predictions, start=1):
+    print(f"{rank:<6}{item['ticker']:<10}{item['probability']:>6.2f}%         {item['signal']:<15}")
+
+# 1. Top 5 to BUY
+top_5_buy = predictions[:5]
+print("\n" + "=" * 60)
+print("🚀 TOP 5 TO BUY (Highest Bullish Confidence):")
+print("-" * 60)
+for rank, pick in enumerate(top_5_buy, start=1):
+    print(f"  {rank}. {pick['ticker']:<6} - {pick['probability']:>6.2f}% ({pick['signal']})")
+
+# 2. Top 5 to SELL
+top_5_sell = sorted(predictions, key=lambda x: x["probability"])[:5]
+print("\n" + "=" * 60)
+print("🔻 TOP 5 TO SELL (Lowest Probability / Bearish Momentum):")
+print("-" * 60)
+for rank, pick in enumerate(top_5_sell, start=1):
+    print(f"  {rank}. {pick['ticker']:<6} - {pick['probability']:>6.2f}% ({pick['signal']})")
+
+# 3. Top 5 to HOLD / SKIP
+top_5_hold = sorted(predictions, key=lambda x: abs(x["probability"] - 50.0))[:5]
+print("\n" + "=" * 60)
+print("⏸️ TOP 5 TO HOLD / SKIP (Closest to Neutral 50% Momentum):")
+print("-" * 60)
+for rank, pick in enumerate(top_5_hold, start=1):
+    print(f"  {rank}. {pick['ticker']:<6} - {pick['probability']:>6.2f}% ({pick['signal']})")
+print("=" * 60)
