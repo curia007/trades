@@ -33,6 +33,9 @@ It combines historical and live technical indicator engineering via Yahoo Financ
   - Serializes distinct models to `data/`:
     - DJIA: `djia_stock_model.safetensors` and `normalization_djia_stats.json`.
     - Tech: `tech_stock_model.safetensors` and `normalization_tech_stats.json`.
+  - Packages shareable named models under `data/models/` with configs:
+    - `top_tech_trades_01`
+    - `top_djia_trades_01`
 
 - **Next Opening Trading Day Forecasting**:
   - Fetches the latest live market data for tracked stocks.
@@ -63,8 +66,12 @@ Trades/
 │   ├── normalization_djia_stats.json  # DJIA Z-score normalization statistics
 │   ├── djia_stock_model.safetensors   # Trained DJIA MLX neural network weights
 │   ├── normalization_tech_stats.json  # Tech Z-score normalization statistics
-│   └── tech_stock_model.safetensors   # Trained Tech MLX neural network weights
+│   ├── tech_stock_model.safetensors   # Trained Tech MLX neural network weights
+│   └── models/                        # Packaged named models for reuse
+│       ├── top_tech_trades_01/        # Named Tech model (config + weights + stats)
+│       └── top_djia_trades_01/        # Named DJIA model (config + weights + stats)
 └── src/
+    ├── export_named_models.py         # Package trained MLX models with named configs
     ├── margin_call_analysis.py        # Cross-model margin call & leverage risk ranking
     ├── run_all.py                     # Dual-market runner (calls both DJIA and Tech pipelines)
     ├── train_djia_stock_model.py      # DJIA historical retrieval, dataset construction & training
@@ -161,6 +168,35 @@ python src/margin_call_analysis.py --top-n 5
 # or via main.py:
 python main.py --target margin
 ```
+
+### 5. Package Named Models for Reuse
+
+After training, export shareable model directories with configs and copied weights:
+
+```bash
+python3 src/export_named_models.py
+```
+
+Each packaged model lives under `data/models/<name>/` and contains:
+- `config.json` — architecture, tickers, threshold, and normalization metadata
+- `model.safetensors` — trained MLX weights
+- `normalization_stats.json` — feature mean/std used at inference
+
+Named models:
+- `top_tech_trades_01` — High-Tech next-open bullish probability model
+- `top_djia_trades_01` — DJIA next-open bullish probability model
+
+Load a packaged model in Python:
+
+```python
+from src.export_named_models import load_named_model
+
+model, config, stats = load_named_model("top_tech_trades_01")
+# or
+model, config, stats = load_named_model("top_djia_trades_01")
+```
+
+Re-run the export script after retraining to refresh packaged configs and weights.
 
 ---
 

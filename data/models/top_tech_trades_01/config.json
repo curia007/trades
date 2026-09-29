@@ -1,0 +1,80 @@
+{
+  "model_name": "top_tech_trades_01",
+  "display_name": "Top Tech Trades v01",
+  "universe": "tech",
+  "description": "MLX MLP trained to forecast next-open bullish probability for leading tech stocks.",
+  "architecture": {
+    "framework": "mlx",
+    "model_type": "stock_prediction_mlp",
+    "class_name": "StockPredictionModel",
+    "input_dim": 4,
+    "hidden1": 16,
+    "hidden2": 8,
+    "output_dim": 1,
+    "activation": "relu",
+    "output_activation": "sigmoid",
+    "features": [
+      "RSI",
+      "MACD",
+      "Volume_Trend",
+      "Daily_Return"
+    ],
+    "task": "binary_classification",
+    "target": "next_day_positive_return"
+  },
+  "weights_file": "model.safetensors",
+  "normalization_file": "normalization_stats.json",
+  "tickers": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "TSLA",
+    "AVGO",
+    "ORCL",
+    "ADBE",
+    "CRM",
+    "AMD",
+    "QCOM",
+    "INTC",
+    "CSCO",
+    "TXN",
+    "INTU",
+    "NOW",
+    "AMAT",
+    "MU",
+    "LRCX",
+    "ADI",
+    "PANW",
+    "SNPS",
+    "CDNS",
+    "KLAC",
+    "CRWD",
+    "PLTR",
+    "MRVL",
+    "ANET"
+  ],
+  "trading_threshold": 75.0,
+  "normalization": {
+    "mean": [
+      52.62544250488281,
+      1.4488929510116577,
+      1.0172617435455322,
+      0.18908663094043732
+    ],
+    "std": [
+      17.303159713745117,
+      9.969099998474121,
+      0.46943753957748413,
+      3.2054965496063232
+    ],
+    "features": [
+      "RSI",
+      "MACD",
+      "Volume_Trend",
+      "Daily_Return"
+    ]
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "model_name": "top_djia_trades_01",
+  "display_name": "Top DJIA Trades v01",
+  "universe": "djia",
+  "description": "MLX MLP trained to forecast next-open bullish probability for DJIA component stocks.",
+  "architecture": {
+    "framework": "mlx",
+    "model_type": "stock_prediction_mlp",
+    "class_name": "StockPredictionModel",
+    "input_dim": 4,
+    "hidden1": 16,
+    "hidden2": 8,
+    "output_dim": 1,
+    "activation": "relu",
+    "output_activation": "sigmoid",
+    "features": [
+      "RSI",
+      "MACD",
+      "Volume_Trend",
+      "Daily_Return"
+    ],
+    "task": "binary_classification",
+    "target": "next_day_positive_return"
+  },
+  "weights_file": "model.safetensors",
+  "normalization_file": "normalization_stats.json",
+  "tickers": [
+    "AAPL",
+    "AMGN",
+    "AMZN",
+    "AXP",
+    "BA",
+    "CAT",
+    "CRM",
+    "CSCO",
+    "CVX",
+    "DIS",
+    "GS",
+    "HD",
+    "HON",
+    "IBM",
+    "JNJ",
+    "JPM",
+    "KO",
+    "MCD",
+    "MMM",
+    "MRK",
+    "MSFT",
+    "NKE",
+    "NVDA",
+    "PG",
+    "SHW",
+    "TRV",
+    "UNH",
+    "V",
+    "VZ",
+    "WMT"
+  ],
+  "trading_threshold": 75.0,
+  "normalization": {
+    "mean": [
+      52.09986114501953,
+      0.888684093952179,
+      1.0119729042053223,
+      0.061361346393823624
+    ],
+    "std": [
+      17.105873107910156,
+      6.21649694442749,
+      0.43363481760025024,
+      1.8765921592712402
+    ],
+    "features": [
+      "RSI",
+      "MACD",
+      "Volume_Trend",
+      "Daily_Return"
+    ]
+  }
+}
