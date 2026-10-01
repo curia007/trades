@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from stock_llama import StockPredictionModel, LlamaWrapperConfig
+
 # 30 Components of the Dow Jones Industrial Average (DJIA)
 DJIA_TICKERS = [
     "AAPL", "AMGN", "AMZN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS",
@@ -33,19 +35,7 @@ WEIGHTS_FILE = str(DATA_DIR / "djia_stock_model.safetensors")
 STATS_FILE = str(DATA_DIR / "normalization_djia_stats.json")
 
 
-# 1. Define Model Architecture (MLX Multi-Layer Perceptron)
-class StockPredictionModel(nn.Module):
-    def __init__(self, input_dim=4):
-        super().__init__()
-        self.layer1 = nn.Linear(input_dim, 16)
-        self.layer2 = nn.Linear(16, 8)
-        self.output = nn.Linear(8, 1)
-        self.relu = nn.ReLU()
-
-    def __call__(self, x):
-        x = self.relu(self.layer1(x))
-        x = self.relu(self.layer2(x))
-        return self.output(x)
+# 1. Model architecture is the Llama transformer wrapper in stock_llama.py.
 
 
 # 2. Historical Feature Engineering Function
@@ -170,8 +160,8 @@ def build_historical_dataset(tickers=None, period="2y", train_split=0.85):
 # 4. Train Model with MLX
 def train_model(model, X_train, y_train, X_val, y_val, epochs=60, batch_size=64, lr=1e-3):
     """Trains the StockPredictionModel using Apple MLX."""
-    print("\n🧠 Training MLX Neural Network Model...")
-    print(f"   Architecture: Linear(4->16) -> ReLU -> Linear(16->8) -> ReLU -> Linear(8->1)")
+    print("\n🧠 Training MLX Llama Transformer for DJIA Stocks...")
+    print("   Architecture: transformer wrapper (feature tokens -> Llama decoder -> pooled logit)")
     print(f"   Epochs: {epochs} | Batch Size: {batch_size} | Learning Rate: {lr}\n")
 
     optimizer = optim.Adam(learning_rate=lr)
@@ -362,7 +352,7 @@ def main():
     )
 
     # Step 2: Initialize model and train
-    model = StockPredictionModel(input_dim=4)
+    model = StockPredictionModel(LlamaWrapperConfig(input_dim=4))
     train_model(
         model=model,
         X_train=X_train,

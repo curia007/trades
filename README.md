@@ -27,8 +27,11 @@ It combines historical and live technical indicator engineering via Yahoo Financ
 
 - **MLX Deep Learning Model & Training**:
   - Built with Apple's `mlx.core`, `mlx.nn`, and `mlx.optimizers` for native Apple Silicon acceleration.
-  - Multi-Layer Perceptron (MLP) architecture:
-    $$\text{Input (4)} \to \text{Linear(16)} \to \text{ReLU} \to \text{Linear(8)} \to \text{ReLU} \to \text{Linear(1)} \to \text{Sigmoid}$$
+  - Llama transformer wrapper configuration:
+    - Each of the 4 technical features is a token (`feature_proj` + feature embedding).
+    - Llama decoder layers (RMSNorm, RoPE attention, SwiGLU MLP).
+    - Mean-pool the sequence and project to a single logit, then sigmoid at inference.
+    - Default wrapper: `hidden_size=64`, `num_hidden_layers=2`, `num_attention_heads=4`, `intermediate_size=128`.
   - Trains using Binary Cross-Entropy loss with Adam optimizer to predict next-day positive price movement.
   - Serializes distinct models to `data/`:
     - DJIA: `djia_stock_model.safetensors` and `normalization_djia_stats.json`.
@@ -68,9 +71,11 @@ Trades/
 │   ├── normalization_tech_stats.json  # Tech Z-score normalization statistics
 │   ├── tech_stock_model.safetensors   # Trained Tech MLX neural network weights
 │   └── models/                        # Packaged named models for reuse
-│       ├── top_tech_trades_01/        # Named Tech model (config + weights + stats)
+│       ├── top_tech_trades_01/        # Named Tech Llama (local LLM for agents)
 │       └── top_djia_trades_01/        # Named DJIA model (config + weights + stats)
 └── src/
+    ├── stock_llama.py                 # Llama transformer wrapper for tabular stock features
+    ├── local_llm.py                   # OpenAI-compatible local LLM server for agents
     ├── export_named_models.py         # Package trained MLX models with named configs
     ├── margin_call_analysis.py        # Cross-model margin call & leverage risk ranking
     ├── run_all.py                     # Dual-market runner (calls both DJIA and Tech pipelines)
@@ -197,6 +202,33 @@ model, config, stats = load_named_model("top_djia_trades_01")
 ```
 
 Re-run the export script after retraining to refresh packaged configs and weights.
+
+### 6. Serve `top_tech_trades_01` as a Local LLM for Agents
+
+The packaged Tech Llama is also an OpenAI-compatible local model so agents can call it without a cloud API.
+
+```bash
+python src/local_llm.py --model top_tech_trades_01 --port 11434
+```
+
+Agent settings:
+- **base_url**: `http://127.0.0.1:11434/v1`
+- **model**: `top_tech_trades_01`
+- **api_key**: any non-empty string (for example `local`)
+
+Discovery files under `data/models/top_tech_trades_01/`:
+- `agent.json` — OpenAI protocol, endpoints, start command
+- `generation_config.json` — Llama architecture metadata
+- `Modelfile` — local wrapper description
+
+Example:
+
+```bash
+curl http://127.0.0.1:11434/v1/models
+curl http://127.0.0.1:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"top_tech_trades_01","messages":[{"role":"user","content":"Forecast NVDA and AAPL"}]}'
+```
 
 ---
 

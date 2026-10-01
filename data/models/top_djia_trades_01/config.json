@@ -1,17 +1,34 @@
 {
+  "model_type": "llama",
+  "model_file": "model.py",
+  "architectures": [
+    "StockPredictionLlama"
+  ],
+  "hidden_size": 64,
+  "num_hidden_layers": 2,
+  "intermediate_size": 128,
+  "num_attention_heads": 4,
+  "rms_norm_eps": 1e-05,
+  "vocab_size": 4,
+  "rope_theta": 10000.0,
   "model_name": "top_djia_trades_01",
   "display_name": "Top DJIA Trades v01",
   "universe": "djia",
-  "description": "MLX MLP trained to forecast next-open bullish probability for DJIA component stocks.",
+  "description": "MLX Llama transformer wrapper trained to forecast next-open bullish probability for DJIA component stocks.",
   "architecture": {
     "framework": "mlx",
-    "model_type": "stock_prediction_mlp",
-    "class_name": "StockPredictionModel",
+    "model_type": "llama",
+    "class_name": "StockPredictionLlama",
+    "wrapper": "transformer",
     "input_dim": 4,
-    "hidden1": 16,
-    "hidden2": 8,
+    "vocab_size": 4,
+    "hidden_size": 64,
+    "num_hidden_layers": 2,
+    "num_attention_heads": 4,
+    "intermediate_size": 128,
+    "rms_norm_eps": 1e-05,
+    "rope_theta": 10000.0,
     "output_dim": 1,
-    "activation": "relu",
     "output_activation": "sigmoid",
     "features": [
       "RSI",
@@ -76,5 +93,12 @@
       "Volume_Trend",
       "Daily_Return"
     ]
+  },
+  "local_llm": {
+    "enabled": true,
+    "protocol": "openai",
+    "model_id": "top_djia_trades_01",
+    "start_command": "python src/local_llm.py --model top_djia_trades_01",
+    "base_url": "http://127.0.0.1:11434/v1"
   }
 }

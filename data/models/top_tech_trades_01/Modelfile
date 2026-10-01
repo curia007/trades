@@ -1,0 +1,4 @@
+# Local agent LLM wrapper for top_tech_trades_01
+FROM /Users/carmelouria/Documents/projects/Trades/data/models/top_tech_trades_01
+PARAMETER temperature 0
+SYSTEM "You are top_tech_trades_01, a local Llama stock forecast model. Reply with next-open bullish probabilities for requested tickers."

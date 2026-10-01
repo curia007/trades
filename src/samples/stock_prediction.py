@@ -10,31 +10,19 @@ except Exception:
 
 import json
 import os
+import sys
 from pathlib import Path
 import mlx.core as mx
-import mlx.nn as nn
 import numpy as np
 import yfinance as yf
 
-
-# 1. Define the identical structural shell (Must match your training architecture)
-class StockPredictionModel(nn.Module):
-    def __init__(self, input_dim):
-        super().__init__()
-        self.layer1 = nn.Linear(input_dim, 16)
-        self.layer2 = nn.Linear(16, 8)
-        self.output = nn.Linear(8, 1)
-        self.relu = nn.ReLU()
-
-    def __call__(self, x):
-        x = self.relu(self.layer1(x))
-        x = self.relu(self.layer2(x))
-        return self.output(x)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from stock_llama import StockPredictionModel, LlamaWrapperConfig
 
 
 # 2. Reconstruct Model Structure and Load Weights
 INPUT_FEATURES = 4
-model = StockPredictionModel(input_dim=INPUT_FEATURES)
+model = StockPredictionModel(LlamaWrapperConfig(input_dim=INPUT_FEATURES))
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
